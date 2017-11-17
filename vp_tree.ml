@@ -174,3 +174,50 @@ let rec to_list = function
 let is_empty = function
   | Empty -> true
   | Node _ -> false
+
+
+(* Functorial interface *)
+
+module type Element =
+sig
+
+  type t   
+
+  val dist : t -> t -> float
+
+end
+
+module type S =
+sig
+  type t
+
+  type elt
+
+  val create: elt list -> t
+
+  val nearest_neighbor: elt -> t -> float * elt
+
+  val to_list: t -> elt list
+
+  val is_empty: t -> bool
+end
+
+module Make = functor (E : Element) ->
+struct
+
+  (* Avoid cyclic type def *)
+  type aux = E.t t
+
+  type t = aux
+  type elt = E.t
+
+  let create = create E.dist
+
+  let nearest_neighbor = nearest_neighbor E.dist
+
+  let to_list = to_list
+
+  let is_empty = is_empty
+
+end
+
