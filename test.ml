@@ -14,8 +14,13 @@ let fabs x =
   if x > 0.0 then x
   else -.x
 
-let dist x0 x1 =
-  fabs (x0 -. x1)
+module Point_2D =
+struct
+  type t = float * float
+  let dist = dist_2D
+end
+
+module Vpt = Vp_tree.Make(Point_2D)
 
 let to_string_2D (x, y) =
   sprintf "%.3f %.3f" x y
@@ -51,9 +56,9 @@ let main () =
   Printf.printf "#size vpt_t(s) brute_t(s)\n%!";
   List.iter (fun s ->
       let points = n_times s one_rand_point_2D in
-      let vpt = Vp_tree.create dist_2D points in
+      let vpt = Vpt.create points in
       let vpt_delta_t, curr =
-        time_it (fun () -> Vp_tree.nearest_neighbor dist_2D query vpt) in
+        time_it (fun () -> Vpt.nearest_neighbor query vpt) in
       let brute_delta_t, reff =
         time_it (fun () -> brute_force_nearest_find dist_2D query points) in
       assert(curr = reff);
