@@ -9,6 +9,66 @@ module L = List
 
 (* Functorial interface *)
 
+(* extend the Array module *)
+module A =
+struct
+  include Array
+
+  (* smaller array, without elt at index 'i' *)
+  let remove i a =
+    let n = length a in
+    assert(i >= 0 && i < n);
+    let res = make (n - 1) a.(0) in
+    let j = ref 0 in
+    for i' = 0 to n - 1 do
+      if i' <> i then
+        (unsafe_set res !j (unsafe_get a i');
+         incr j)
+    done;
+    res
+
+  (* <=> List.partition *)
+  let partition p a =
+    let ok, ko =
+      fold_right (fun x (ok_acc, ko_acc) ->
+          if p x then (x :: ok_acc, ko_acc)
+          else (ok_acc, x :: ko_acc)
+        ) a ([], [])
+    in
+    (of_list ok, of_list ko)
+
+  (* <=> List.split *)
+  let split a =
+    let n = length a in
+    if n = 0 then ([||], [||])
+    else
+      let l, r = a.(0) in
+      let left = make n l in
+      let right = make n r in
+      for i = 1 to n - 1 do
+        let l, r = a.(i) in
+        unsafe_set left i l;
+        unsafe_set right i r
+      done;
+      (left, right)
+
+  (* <=> BatArray.min_max with default value in case of empty array *)
+  let min_max_def a def =
+    let n = length a in
+    if n = 0 then def
+    else
+      let mini = ref a.(0) in
+      let maxi = ref a.(0) in
+      for i = 0 to n - 1 do
+        let x = a.(i) in
+        if x < !mini then
+          mini := x;
+        if x > !maxi then
+          maxi := x
+      done;
+      (!mini, !maxi)
+end
+
 module type Point =
 sig
   type t
@@ -43,85 +103,82 @@ struct
   let square (x: float): float =
     x *. x
 
-  let median (l: float list): float =
-    let xs = Array.of_list l in
-    Array.sort compare xs;
-    let n = Array.length xs in
-    if n mod 2 = 1 then
-      xs.(n / 2)
-    else
-      0.5 *. (xs.(n / 2) +. xs.(n / 2 - 1))
+  let float_compare (x: float) (y: float): int =
+    if x < y then -1
+    else if x > y then 1
+    else 0 (* x = y *)
 
-  let distances (p: P.t) (points: P.t list) =
-    L.rev_map (P.dist p) points
+  let median (xs: float array): float =
+    A.sort float_compare xs;
+    let n = A.length xs in
+    if n mod 2 = 1 then xs.(n / 2)
+    else 0.5 *. (xs.(n / 2) +. xs.(n / 2 - 1))
 
-  let variance (mu: float) (xs: float list) =
-    L.fold_left (fun acc x ->
+  let variance (mu: float) (xs: float array): float =
+    A.fold_left (fun acc x ->
         acc +. (square (x -. mu))
       ) 0.0 xs
 
-  let remove (x: P.t) (l: P.t list) =
-    let rec loop acc = function
-      | [] -> raise Not_found
-      | y :: ys ->
-        if y = x then
-          (y, L.rev_append acc ys)
-        else
-          loop (y :: acc) ys
-    in
-    loop [] l
+  (* compute distance of point at index 'q_i' to all other points *)
+  let distances (q_i: int) (points: P.t array): float array =
+    let n = A.length points in
+    assert(n > 1);
+    let res = A.make (n - 1) 0.0 in
+    let j = ref 0 in
+    let q = points.(q_i) in
+    for i = 0 to n - 1 do
+      if i <> q_i then
+        (res.(!j) <- P.dist q points.(i);
+         incr j)
+    done;
+    res
 
   (* this is optimal and costly (O(n^2)); use random sampling
      if you are indexing many points with your vp-tree *)
-  let select_vp (points: P.t list) =
-    match points with
-    | [] -> assert(false)
-    | [x] -> (x, 0.0, [])
-    | x :: xs ->
-      let vp, mu, _spread, others =
-        L.fold_left (fun (curr_p, curr_mu, curr_spread, curr_others) p ->
-            let p, others = remove p points in
-            let dists = distances p others in
-            let mu = median dists in
-            let spread = variance mu dists in
-            if spread > curr_spread then (p, mu, spread, others)
-            else (curr_p, curr_mu, curr_spread, curr_others)
-          ) (x, 0.0, 0.0, xs) points
-      in
-      (vp, mu, others)
+  let select_best_vp (points: P.t array) =
+    let n = A.length points in
+    if n = 0 then assert(false)
+    else if n = 1 then (points.(0), 0.0, [||])
+    else
+      let curr_vp = ref 0 in
+      let curr_mu = ref 0.0 in
+      let curr_spread = ref 0.0 in
+      for i = 0 to n - 1 do
+        (* could be faster using a distance cache *)
+        let dists = distances !curr_vp points in
+        let mu = median dists in
+        let spread = variance mu dists in
+        if spread > !curr_spread then
+          (curr_vp := i;
+           curr_mu := mu;
+           curr_spread := spread)
+      done;
+      (points.(!curr_vp), !curr_mu, A.remove !curr_vp points)
+
+  (* like select_best_vp but works even with many points *)
+  let select_good_vp (points: P.t list) =
+    failwith "not implemented yet"
 
   exception Empty_list
 
-  let min_max (l: float list): float * float =
-    let rec loop ((mini, maxi) as acc) = function
-      | [] -> acc
-      | x :: xs -> loop (min x mini, max x maxi) xs
-    in
-    match l with
-    | [] -> raise Empty_list
-    | x :: xs -> loop (x, x) xs
-
-  let rec create points =
-    match points with
-    | [] -> Empty
-    | [x] -> new_node x 0. 0. 0. 0. 0. Empty Empty
-    | _more ->
-      let vp, mu, others = select_vp points in
-      let dists = L.rev_map (fun p -> (P.dist vp p, p)) others in
-      let lefties, righties = L.partition (fun (d, p) -> d < mu) dists in
-      let ldists, lpoints = L.split lefties in
-      let rdists, rpoints = L.split righties in
-      let lb_low, lb_high =
-        match ldists with
-        | [] -> 0., 0.
-        | _ -> min_max ldists in
-      let rb_low, rb_high =
-        match rdists with
-        | [] -> 0., 0.
-        | _ -> min_max rdists in
+  let rec create' points =
+    let n = A.length points in
+    if n = 0 then Empty
+    else if n = 1 then new_node points.(0) 0. 0. 0. 0. 0. Empty Empty
+    else
+      let vp, mu, others = select_best_vp points in
+      let dists = A.map (fun p -> (P.dist vp p, p)) others in
+      let lefties, righties = A.partition (fun (d, p) -> d < mu) dists in
+      let ldists, lpoints = A.split lefties in
+      let rdists, rpoints = A.split righties in
+      let lb_low, lb_high = A.min_max_def ldists (0., 0.) in
+      let rb_low, rb_high = A.min_max_def rdists (0., 0.) in
       let middle = (lb_high +. rb_low) *. 0.5 in
       new_node vp lb_low lb_high middle rb_low rb_high
-        (create lpoints) (create rpoints)
+        (create' lpoints) (create' rpoints)
+
+  let create points =
+    create' (A.of_list points)
 
   let rec find_nearest acc query tree =
     match tree with
@@ -173,7 +230,7 @@ struct
     | None -> raise Not_found
     | Some (tau, best) -> (tau, best)
 
-  let neighbors query tolerance tree =
+  let neighbors query tol tree =
     failwith "not implemented yet"
 
   let rec to_list = function
