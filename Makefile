@@ -1,3 +1,5 @@
+.PHONY: test
+
 all:
 	obuild configure
 	obuild build lib-minivpt
