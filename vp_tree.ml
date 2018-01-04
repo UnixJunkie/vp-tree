@@ -1,6 +1,8 @@
 
 module L = List
 
+let () = Random.self_init ()
+
 (* Vantage-point tree implementation
    Cf. "Data structures and algorithms for nearest neighbor search
    in general metric spaces" by Peter N. Yianilos for details.
@@ -67,6 +69,19 @@ struct
           maxi := x
       done;
       (!mini, !maxi)
+
+  (* get one bootstrap sample of 'size' using sampling with replacement *)
+  let bootstrap_sample size a =
+    let n = length a in
+    assert(n > 0);
+    assert(size < n);
+    let res = make size a.(0) in
+    for i = 1 to size do
+      let rand = Random.int n in
+      res.(i) <- unsafe_get a rand
+    done;
+    res
+    
 end
 
 module type Point =
@@ -133,8 +148,8 @@ struct
     done;
     res
 
-  (* this is optimal and costly (O(n^2)); use random sampling
-     if you are indexing many points with your vp-tree *)
+  (* this is optimal (slowest tree construction; O(n^2));
+     but fastest query time *)
   let select_best_vp (points: P.t array) =
     let n = A.length points in
     if n = 0 then assert(false)
@@ -155,9 +170,37 @@ struct
       done;
       (points.(!curr_vp), !curr_mu, A.remove !curr_vp points)
 
-  (* like select_best_vp but works even with many points *)
-  let select_good_vp (points: P.t list) =
-    failwith "not implemented yet"
+  (* to replace select_best_vp when working with too many points *)
+  let select_good_vp (points: P.t array) (sample_size: int) =
+    let n = A.length points in
+    if sample_size > n then
+      select_best_vp points
+    else
+      let candidates = A.bootstrap_sample sample_size points in
+      let curr_vp = ref 0 in
+      let curr_mu = ref 0.0 in
+      let curr_spread = ref 0.0 in
+      A.iteri (fun i p_i ->
+          let sample = A.bootstrap_sample sample_size points in
+          let dists = A.map (P.dist p_i) sample in
+          let mu = median dists in
+          let spread = variance mu dists in
+          if spread > !curr_spread then
+            (curr_vp := i;
+             curr_mu := mu;
+             curr_spread := spread)
+        ) candidates;
+      (points.(!curr_vp), !curr_mu, A.remove !curr_vp points)
+
+  (* to replace select_good_vp when working with way too many points,
+     or if you really need the fastest possible tree construction *)
+  let select_rand_vp (points: P.t array) =
+    let n = A.length points in
+    assert(n > 0);
+    let vp = Random.int n in
+    let dists = distances vp points in
+    let mu = median dists in
+    (points.(vp), mu, A.remove vp points)
 
   exception Empty_list
 
@@ -176,6 +219,11 @@ struct
       let middle = (lb_high +. rb_low) *. 0.5 in
       new_node vp lb_low lb_high middle rb_low rb_high
         (create' lpoints) (create' rpoints)
+
+  type quality = Optimal (* if you have thousands of points *)
+               | Good of int (* if you have tens to hundreds
+                                of thousands of points *)
+               | Random (* if you have millions of points *)
 
   let create points =
     create' (A.of_list points)
