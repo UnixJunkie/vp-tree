@@ -173,6 +173,9 @@ struct
     | None -> raise Not_found
     | Some (tau, best) -> (tau, best)
 
+  let neighbors query tolerance tree =
+    failwith "not implemented yet"
+
   let rec to_list = function
     | Empty -> []
     | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
