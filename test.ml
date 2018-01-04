@@ -53,16 +53,17 @@ let time_it f =
 let main () =
   let sizes = [1;2;4;8;16;32;64;128;256;512;1024;2048;4096;8192] in
   let query = one_rand_point_2D () in
-  Printf.printf "#size vpt_t(s) brute_t(s)\n%!";
-  List.iter (fun s ->
-      let points = n_times s one_rand_point_2D in
-      let vpt = Vpt.create points in
+  Printf.printf "#size vpt_create(s) vpt_query(s) brute_query(s)\n%!";
+  List.iter (fun size ->
+      let points = n_times size one_rand_point_2D in
+      let vpt_create_t, vpt =
+        time_it (fun () -> Vpt.create points) in
       let vpt_delta_t, curr =
         time_it (fun () -> Vpt.nearest_neighbor query vpt) in
       let brute_delta_t, reff =
         time_it (fun () -> brute_force_nearest_find dist_2D query points) in
       assert(curr = reff);
-      Printf.printf "%d %f %f\n%!" s vpt_delta_t brute_delta_t
+      Printf.printf "%d %f %f %f\n%!" size vpt_create_t vpt_delta_t brute_delta_t
     ) sizes
 
 let () = main ()
