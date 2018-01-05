@@ -30,11 +30,21 @@ sig
   val nearest_neighbor: P.t -> t -> float * P.t
   (** [neighbors p tol vpt] return all points in [vpt] within
       [tol] distance from query point [p].
-      I.e. all points returned are within [(d <= tol)] 
+      I.e. all points returned are within [(d <= tol)]
       distance from [p]. *)
   val neighbors: P.t -> float -> t -> P.t list
   (** [to_list vpt] return the list of points in [vpt]. *)
   val to_list: t -> P.t list
   (** [is_empty vpt] test if [vpt] is empty. *)
   val is_empty: t -> bool
+  (** [find query tree] return the first point with distance to [query] = 0.0.
+      @raise [Not_found] if no such element exists. *)
+  val find: P.t -> t -> P.t
+  (** [root tree] return the root point of the tree.
+      @raise [Not_found] if [tree] is empty. *)
+  val root: t -> P.t
+  (** [check tree] test the tree invariant.
+      Should always be true.
+      If invariant doesn't hold, then this library has a bug. *)
+  val check: t -> bool
 end

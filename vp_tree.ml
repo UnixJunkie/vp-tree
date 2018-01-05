@@ -201,7 +201,11 @@ struct
              curr_mu := mu;
              curr_spread := spread)
         ) candidates;
-      (points.(!curr_vp), !curr_mu, A.remove !curr_vp points)
+      (* we need the true mu to balance the tree;
+         not the one gotten from the sample! *)
+      let dists = distances !curr_vp points in
+      let mu = median dists in
+      (points.(!curr_vp), mu, A.remove !curr_vp points)
 
   (* to replace select_good_vp when working with way too many points,
      or if you really need the fastest possible tree construction *)
@@ -298,7 +302,7 @@ struct
       | Empty -> acc
       | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
         (* should we include vp? *)
-        let d = P.dist query vp in
+        let d = P.dist vp query in
         let acc' =
           if d <= tol then vp :: acc
           else acc in
@@ -330,5 +334,37 @@ struct
   let is_empty = function
     | Empty -> true
     | Node _ -> false
+
+  let root = function
+    | Empty -> raise Not_found
+    | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } -> vp
+
+  exception Found of P.t
+
+  (* test if the tree invariant holds.
+     If it doesn't, then we are in trouble... *)
+  let rec check = function
+    | Empty -> true
+    | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
+      let lpoints = to_list left in
+      let ltest = L.for_all (fun p -> P.dist vp p < middle) lpoints in
+      if not ltest then false
+      else
+        let rpoints = to_list right in
+        let rtest = L.for_all (fun p -> P.dist vp p >= middle) rpoints in
+        if not rtest then false
+        else
+          check left && check right
+
+  let find query tree =
+    let rec loop = function
+      | Empty -> ()
+      | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
+        let d = P.dist vp query in
+        if d = 0.0 then raise (Found vp)
+        else if d < middle then loop left
+        else loop right in
+    try (loop tree; raise Not_found)
+    with Found p -> p
 
 end
