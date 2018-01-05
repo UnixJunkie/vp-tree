@@ -64,16 +64,39 @@ let query_several_times n vpt =
 
 let main () =
   (* test all neighbors within tolerance query *)
-  let points = n_times 50_000 one_rand_point_2D in
-  let tree = Vpt.create (Vpt.Good 50) points in
+  let points = n_times 1000 one_rand_point_2D in
+  let t1 = Vpt.create Vpt.Optimal points in
+  let t2 = Vpt.create (Vpt.Good 50) points in
+  let t3 = Vpt.create Vpt.Random points in
+  assert(Vpt.check t1);
+  assert(Vpt.check t2);
+  assert(Vpt.check t3);
+  (* test all points are in the tree *)
+  assert(List.sort compare points = List.sort compare (Vpt.to_list t1));
+  assert(List.sort compare points = List.sort compare (Vpt.to_list t2));
+  assert(List.sort compare points = List.sort compare (Vpt.to_list t3));
   let query = one_rand_point_2D () in
   let tol = Random.float 0.01 in
-  let vpt_t, nearby_curr = time_it (fun () -> Vpt.neighbors query tol tree) in
+  let vpt_t, nearby_curr = time_it (fun () -> Vpt.neighbors query tol t1) in
+  let nearby_curr' = Vpt.neighbors query tol t2 in
+  let nearby_curr'' = Vpt.neighbors query tol t3 in
   assert(List.for_all (fun p -> dist_2D query p <= tol) nearby_curr);
   let brute_t, nearby_ref = time_it (fun () ->
       List.filter (fun p -> dist_2D query p <= tol) points
     ) in
   assert(List.sort compare nearby_curr = List.sort compare nearby_ref);
+  assert(List.sort compare nearby_curr' = List.sort compare nearby_ref);
+  assert(List.sort compare nearby_curr'' = List.sort compare nearby_ref);
+  (* test all points can be found in the tree *)
+  assert(List.for_all
+           (fun p -> Vpt.find p t1 = p)
+           points);
+  assert(List.for_all
+           (fun p -> Vpt.find p t2 = p)
+           points);
+  assert(List.for_all
+           (fun p -> Vpt.find p t3 = p)
+           points);
   printf "#vpt_neighbors(%d): %f brute: %f accel: %.3f\n%!"
     (List.length nearby_curr)
     vpt_t brute_t (brute_t /. vpt_t);
