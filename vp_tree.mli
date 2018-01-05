@@ -11,9 +11,18 @@ end
 
 module Make: functor (P: Point) ->
 sig
+  (** A vantage point tree. *)
   type t
-  (** [create points] create a vantage point tree given a list of points *)
-  val create: P.t list -> t
+  (** Quality of the constructed tree.
+      Tree construction takes more time with higher quality.
+      Tree query time takes less time with higher tree quality.
+      If you have 100k or more points, use a Good or Random tree. *)
+  type quality = Optimal
+               | Good of int (* sample size *)
+               | Random
+  (** [create quality points]
+      create a vantage point tree of given quality containing all points. *)
+  val create: quality -> P.t list -> t
   (** [nearest_neighbor p vpt] return the distance along with the nearest
       neighbor to query point [p] in [vpt]. Warning: there may be several
       points at this distance from [p] in [vpt],
