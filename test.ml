@@ -111,6 +111,8 @@ let main () =
       let g_t, gvpt = time_it (fun () -> Vpt.create (Vpt.Good 50) points) in
       let r_t, rvpt = time_it (fun () -> Vpt.create Vpt.Random points) in
       (* query all VPTs *)
+      (* FBR: we should query always with the same query points, whatever
+       *      the flavor of the tree in order to compare query speed *)
       let bq_t, b_curr, q = query_several_times ntimes bvpt in
       let reff = brute_force_nearest_find dist_2D q points in
       assert(b_curr = reff);
