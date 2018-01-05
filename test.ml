@@ -63,6 +63,21 @@ let query_several_times n vpt =
   (dt /. (float n), res, q)
 
 let main () =
+  (* test all neighbors within tolerance query *)
+  let points = n_times 50_000 one_rand_point_2D in
+  let tree = Vpt.create (Vpt.Good 50) points in
+  let query = one_rand_point_2D () in
+  let tol = Random.float 0.01 in
+  let vpt_t, nearby_curr = time_it (fun () -> Vpt.neighbors query tol tree) in
+  assert(List.for_all (fun p -> dist_2D query p <= tol) nearby_curr);
+  let brute_t, nearby_ref = time_it (fun () ->
+      List.filter (fun p -> dist_2D query p <= tol) points
+    ) in
+  assert(List.sort compare nearby_curr = List.sort compare nearby_ref);
+  printf "#vpt_neighbors(%d): %f brute: %f accel: %.3f\n%!"
+    (List.length nearby_curr)
+    vpt_t brute_t (brute_t /. vpt_t);
+  (* test nearest_neighbor queries *)
   let sizes = [1;2;4;8;16;32;64;128;256;512;1024;2048;4096;8192] in
   let ntimes = 100 in
   Printf.printf "#size b_c g_c r_c b_q g_q r_q brute\n";
