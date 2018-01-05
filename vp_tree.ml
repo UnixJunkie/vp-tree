@@ -76,9 +76,9 @@ struct
     assert(n > 0);
     assert(size < n);
     let res = make size a.(0) in
-    for i = 1 to size do
+    for i = 0 to size - 1 do
       let rand = Random.int n in
-      res.(i) <- unsafe_get a rand
+      unsafe_set res i (unsafe_get a rand)
     done;
     res
     
@@ -171,9 +171,9 @@ struct
       (points.(!curr_vp), !curr_mu, A.remove !curr_vp points)
 
   (* to replace select_best_vp when working with too many points *)
-  let select_good_vp (points: P.t array) (sample_size: int) =
+  let select_good_vp (sample_size: int) (points: P.t array) =
     let n = A.length points in
-    if sample_size > n then
+    if sample_size >= n then
       select_best_vp points
     else
       let candidates = A.bootstrap_sample sample_size points in
@@ -204,12 +204,12 @@ struct
 
   exception Empty_list
 
-  let rec create' points =
+  let rec create' select_vp points =
     let n = A.length points in
     if n = 0 then Empty
     else if n = 1 then new_node points.(0) 0. 0. 0. 0. 0. Empty Empty
     else
-      let vp, mu, others = select_best_vp points in
+      let vp, mu, others = select_vp points in
       let dists = A.map (fun p -> (P.dist vp p, p)) others in
       let lefties, righties = A.partition (fun (d, p) -> d < mu) dists in
       let ldists, lpoints = A.split lefties in
@@ -218,15 +218,19 @@ struct
       let rb_low, rb_high = A.min_max_def rdists (0., 0.) in
       let middle = (lb_high +. rb_low) *. 0.5 in
       new_node vp lb_low lb_high middle rb_low rb_high
-        (create' lpoints) (create' rpoints)
+        (create' select_vp lpoints) (create' select_vp rpoints)
 
   type quality = Optimal (* if you have thousands of points *)
                | Good of int (* if you have tens to hundreds
                                 of thousands of points *)
                | Random (* if you have millions of points *)
 
-  let create points =
-    create' (A.of_list points)
+  let create quality points =
+    let select_vp = match quality with
+      | Optimal -> select_best_vp
+      | Good ssize -> select_good_vp ssize
+      | Random -> select_rand_vp in
+    create' select_vp (A.of_list points)
 
   let rec find_nearest acc query tree =
     match tree with
