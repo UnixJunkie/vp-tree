@@ -110,6 +110,7 @@ struct
   type open_itv = { lbound: float; rbound: float }
 
   let new_open_itv lbound rbound =
+    assert(lbound <= rbound);
     { lbound; rbound }
 
   let in_open_itv x { lbound ; rbound }  =
@@ -283,7 +284,24 @@ struct
     | Some (tau, best) -> (tau, best)
 
   let neighbors query tol tree =
-    failwith "not implemented yet"
+    let rec loop acc = function
+      | Empty -> acc
+      | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
+        (* should we include vp? *)
+        let d = P.dist query vp in
+        let acc' =
+          if d <= tol then vp :: acc
+          else acc in
+        (* should we inspect the left? *)
+        let lmatches =
+          if d >= lb_low && d <= lb_high
+          then loop acc' left
+          else acc' in
+        (* should we inspect the right? *)
+        if d >= rb_low && d <= rb_high
+        then loop lmatches right
+        else lmatches in
+    loop [] tree
 
   let rec to_list = function
     | Empty -> []
