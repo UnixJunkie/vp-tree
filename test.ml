@@ -50,20 +50,41 @@ let time_it f =
   let stop = Unix.gettimeofday () in
   (stop -. start, res)
 
+let query_several_times n vpt =
+  let dt, _ =
+    time_it (fun () ->
+        for i = 1 to n do
+          let q = one_rand_point_2D () in
+          ignore(Vpt.nearest_neighbor q vpt)
+        done
+      ) in
+  let q = one_rand_point_2D () in
+  let res = Vpt.nearest_neighbor q vpt in
+  (dt /. (float n), res, q)
+
 let main () =
   let sizes = [1;2;4;8;16;32;64;128;256;512;1024;2048;4096;8192] in
-  let query = one_rand_point_2D () in
-  Printf.printf "#size vpt_create(s) vpt_query(s) brute_query(s)\n%!";
+  let ntimes = 100 in
+  Printf.printf "#size b_c g_c r_c b_q g_q r_q brute\n";
   List.iter (fun size ->
       let points = n_times size one_rand_point_2D in
-      let vpt_create_t, vpt =
-        time_it (fun () -> Vpt.create points) in
-      let vpt_delta_t, curr =
-        time_it (fun () -> Vpt.nearest_neighbor query vpt) in
-      let brute_delta_t, reff =
-        time_it (fun () -> brute_force_nearest_find dist_2D query points) in
-      assert(curr = reff);
-      Printf.printf "%d %f %f %f\n%!" size vpt_create_t vpt_delta_t brute_delta_t
+      (* create all VPTs *)
+      let b_t, bvpt = time_it (fun () -> Vpt.create Vpt.Optimal points) in
+      let g_t, gvpt = time_it (fun () -> Vpt.create (Vpt.Good 50) points) in
+      let r_t, rvpt = time_it (fun () -> Vpt.create Vpt.Random points) in
+      (* query all VPTs *)
+      let bq_t, b_curr, q = query_several_times ntimes bvpt in
+      let reff = brute_force_nearest_find dist_2D q points in
+      assert(b_curr = reff);
+      let gq_t, g_curr, q = query_several_times ntimes gvpt in
+      let reff = brute_force_nearest_find dist_2D q points in
+      assert(g_curr = reff);
+      let rq_t, r_curr, q = query_several_times ntimes rvpt in
+      let brute_t, reff =
+        time_it (fun () -> brute_force_nearest_find dist_2D q points) in
+      assert(r_curr = reff);
+      Printf.printf "%d %f %f %f %f %f %f %f\n%!"
+        size b_t g_t r_t bq_t gq_t rq_t brute_t
     ) sizes
 
 let () = main ()
