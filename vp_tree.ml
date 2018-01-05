@@ -93,6 +93,13 @@ end
 module Make = functor (P: Point) ->
 struct
 
+  type quality = Optimal (* if you have thousands of points *)
+               | Good of int (* if you have tens to hundreds
+                                of thousands of points *)
+               | Random (* if you have millions of points *)
+
+  let qual = ref Optimal (* will be changed upon creation *)
+
   type node = { vp: P.t;
                 lb_low: float;
                 lb_high: float;
@@ -235,12 +242,10 @@ struct
       new_node vp lb_low lb_high middle rb_low rb_high
         (create' select_vp lpoints) (create' select_vp rpoints)
 
-  type quality = Optimal (* if you have thousands of points *)
-               | Good of int (* if you have tens to hundreds
-                                of thousands of points *)
-               | Random (* if you have millions of points *)
-
   let create quality points =
+    qual := quality; (* memoize quality that was used at creation;
+                        so that we can reuse the same policy upon
+                        removal of an element and subsequent tree update. *)
     let select_vp = match quality with
       | Optimal -> select_best_vp
       | Good ssize -> select_good_vp ssize
@@ -370,5 +375,24 @@ struct
   let mem query tree =
     try (let _ = find query tree in true)
     with Not_found -> false
+
+  let remove query tree =
+    let found = ref false in
+    let rec loop = function
+      | Empty -> Empty
+      | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
+        let d = P.dist vp query in
+        if d = 0.0 then
+          (* remove elt. and reconstruct sub tree *)
+          (found := true;
+           let lpoints = to_list left in
+           let rpoints = to_list right in
+           let points = L.rev_append lpoints rpoints in
+           create !qual points)
+        else if d < middle then loop left
+        else loop right in
+    let tree' = loop tree in
+    if !found then tree'
+    else raise Not_found
 
 end
