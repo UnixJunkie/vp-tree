@@ -40,6 +40,9 @@ sig
   (** [find query tree] return the first point with distance to [query] = 0.0.
       @raise [Not_found] if no such element exists. *)
   val find: P.t -> t -> P.t
+  (** [mem query tree] return true if [query] can be found in [tree];
+      false otherwise. *)
+  val mem: P.t -> t -> bool
   (** [root tree] return the root point of the tree.
       @raise [Not_found] if [tree] is empty. *)
   val root: t -> P.t

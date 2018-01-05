@@ -339,8 +339,6 @@ struct
     | Empty -> raise Not_found
     | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } -> vp
 
-  exception Found of P.t
-
   (* test if the tree invariant holds.
      If it doesn't, then we are in trouble... *)
   let rec check = function
@@ -356,6 +354,8 @@ struct
         else
           check left && check right
 
+  exception Found of P.t
+
   let find query tree =
     let rec loop = function
       | Empty -> ()
@@ -366,5 +366,9 @@ struct
         else loop right in
     try (loop tree; raise Not_found)
     with Found p -> p
+
+  let mem query tree =
+    try (let _ = find query tree in true)
+    with Not_found -> false
 
 end
