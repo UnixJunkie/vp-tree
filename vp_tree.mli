@@ -50,8 +50,10 @@ sig
       Should always be true.
       If invariant doesn't hold, then this library has a bug. *)
   val check: t -> bool
-  (** [remove query tree] return an updated [tree] where the first
+  (** [remove quality query tree] return an updated [tree] where the first
       element with distance = 0 to [query] was removed.
-      @raise [Not_found] if no such element exists. *)
-  val remove: P.t -> t -> t
+      The sub-tree that is reconstructed upon removal of [query] uses
+      the specified [quality].
+      @raise [Not_found] if [not (mem query tree)]. *)
+  val remove: quality -> P.t -> t -> t
 end
