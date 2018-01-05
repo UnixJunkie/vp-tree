@@ -81,7 +81,7 @@ struct
       unsafe_set res i (unsafe_get a rand)
     done;
     res
-    
+
 end
 
 module type Point =
@@ -115,6 +115,16 @@ struct
 
   let in_open_itv x { lbound ; rbound }  =
     (x > lbound) && (x < rbound)
+
+  let itv_dont_overlap left right =
+    let a = left.lbound in
+    let b = left.rbound in
+    let c = right.lbound in
+    let d = right.rbound in
+    (b < c) || (a > d)
+
+  let itv_overlap left right =
+    not (itv_dont_overlap left right)
 
   let square (x: float): float =
     x *. x
@@ -292,13 +302,20 @@ struct
         let acc' =
           if d <= tol then vp :: acc
           else acc in
+        let lbound =
+          if d <= tol then 0.0
+          else d -. tol in
+        let rbound = d +. tol in
+        let itv = new_open_itv lbound rbound in
         (* should we inspect the left? *)
         let lmatches =
-          if d >= lb_low && d <= lb_high
+          let itv_left = new_open_itv lb_low lb_high in
+          if itv_overlap itv itv_left
           then loop acc' left
           else acc' in
         (* should we inspect the right? *)
-        if d >= rb_low && d <= rb_high
+        let itv_right = new_open_itv rb_low rb_high in
+        if itv_overlap itv itv_right
         then loop lmatches right
         else lmatches in
     loop [] tree
