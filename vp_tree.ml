@@ -319,7 +319,7 @@ struct
           let itv_left = new_open_itv lb_low lb_high in
           if itv_overlap itv itv_left then
             (* further calls to P.dist needed? *)
-            if d = 0.0 && lb_high <= tol then
+            if d +. lb_high <= tol then
               (* all descendants are included *)
               L.rev_append (to_list left) acc'
             else
@@ -329,7 +329,7 @@ struct
         let itv_right = new_open_itv rb_low rb_high in
         if itv_overlap itv itv_right then
           (* further calls to P.dist needed? *)
-          if d = 0.0 && rb_high <= tol then
+          if d +. rb_high <= tol then
             L.rev_append (to_list right) lmatches
           else
             loop lmatches right
