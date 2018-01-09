@@ -382,15 +382,27 @@ struct
       | Empty -> Empty
       | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
         let d = P.dist vp query in
-        if d = 0.0 then
-          (* remove elt. and reconstruct sub tree *)
-          (found := true;
-           let lpoints = to_list left in
-           let rpoints = to_list right in
-           let points = L.rev_append lpoints rpoints in
-           create quality points)
-        else if d < middle then loop left
-        else loop right in
+        found := d = 0.0;
+        if !found then
+          (* remove elt. and merge sub trees *)
+          (match left, right with
+           | Empty, Empty -> Empty
+           | Node l, Empty -> Node l
+           | Empty, Node r -> Node r
+           | _ ->
+             let lpoints = to_list left in
+             let rpoints = to_list right in
+             let points = L.rev_append lpoints rpoints in
+             create quality points)
+        else if d < middle then
+          Node { vp; lb_low; lb_high; middle; rb_low; rb_high;
+                 left = loop left;
+                 right }
+        else
+          Node { vp; lb_low; lb_high; middle; rb_low; rb_high;
+                 left;
+                 right = loop right }
+    in
     let tree' = loop tree in
     if !found then tree'
     else raise Not_found
