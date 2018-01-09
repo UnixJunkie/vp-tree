@@ -189,7 +189,7 @@ struct
   (* to replace select_best_vp when working with too many points *)
   let select_good_vp (sample_size: int) (points: P.t array) =
     let n = A.length points in
-    if square sample_size >= n then
+    if sample_size * sample_size >= n then
       select_best_vp points
     else
       let candidates = A.bootstrap_sample sample_size points in
