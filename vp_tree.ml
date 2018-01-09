@@ -297,39 +297,44 @@ struct
     | None -> raise Not_found
     | Some (tau, best) -> (tau, best)
 
-  let neighbors query tol tree =
-    let rec loop acc = function
-      | Empty -> acc
-      | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
-        (* should we include vp? *)
-        let d = P.dist vp query in
-        let acc' =
-          if d <= tol then vp :: acc
-          else acc in
-        let lbound =
-          if d <= tol then 0.0
-          else d -. tol in
-        let rbound = d +. tol in
-        let itv = new_open_itv lbound rbound in
-        (* should we inspect the left? *)
-        let lmatches =
-          let itv_left = new_open_itv lb_low lb_high in
-          if itv_overlap itv itv_left
-          then loop acc' left
-          else acc' in
-        (* should we inspect the right? *)
-        let itv_right = new_open_itv rb_low rb_high in
-        if itv_overlap itv itv_right
-        then loop lmatches right
-        else lmatches in
-    loop [] tree
-
   let rec to_list = function
     | Empty -> []
     | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
       let lefties = to_list left in
       let righties = to_list right in
       L.rev_append lefties (vp :: righties)
+
+  let neighbors query tol tree =
+    let rec loop acc = function
+      | Empty -> acc
+      | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
+        (* should we include vp? *)
+        let d = P.dist vp query in
+        let acc' = if d <= tol then vp :: acc else acc in
+        let lbound = max 0.0 (d -. tol) in
+        let rbound = d +. tol in
+        let itv = new_open_itv lbound rbound in
+        (* should we inspect the left? *)
+        let lmatches =
+          let itv_left = new_open_itv lb_low lb_high in
+          if itv_overlap itv itv_left then
+            (* further calls to P.dist needed? *)
+            if d = 0.0 && lb_high <= tol then
+              (* all descendants are included *)
+              L.rev_append (to_list left) acc'
+            else
+              loop acc' left
+          else acc' in
+        (* should we inspect the right? *)
+        let itv_right = new_open_itv rb_low rb_high in
+        if itv_overlap itv itv_right then
+          (* further calls to P.dist needed? *)
+          if d = 0.0 && rb_high <= tol then
+            L.rev_append (to_list right) lmatches
+          else
+            loop lmatches right
+        else lmatches in
+    loop [] tree
 
   let is_empty = function
     | Empty -> true
