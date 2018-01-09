@@ -1,19 +1,17 @@
 .PHONY: test
 
 all:
-	obuild configure
-	obuild build lib-minivpt
+	jbuilder build @install
 
 test:
-	obuild configure
-	obuild build exe-test
-	./test
+	jbuilder build test.exe
+	./_build/default/test.exe
 
 install: all
-	obuild install
+	jbuilder install
 
 uninstall:
-	ocamlfind -remove minivpt
+	ocamlfind -remove vpt
 
 clean:
-	obuild clean
+	rm -rf _build
