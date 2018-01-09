@@ -6,16 +6,15 @@ bug-reports: "https://github.com/UnixJunkie/vp-tree/issues"
 dev-repo: "https://github.com/UnixJunkie/vp-tree.git"
 license: "BSD-3"
 build: [
-  ["obuild" "configure"]
-  ["obuild" "build" "lib-minivpt"]
+  ["jbuilder" "build" "@install"]
 ]
 install: [
-  ["obuild" "install"]
+  ["jbuilder" "install"]
 ]
 remove: [
-  ["ocamlfind" "remove" "minivpt"]
+  ["ocamlfind" "remove" "vpt"]
 ]
 depends: [
   "ocamlfind"
-  "obuild" {build}
+  "jbuilder" {build}
 ]
