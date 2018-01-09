@@ -1,4 +1,6 @@
 
+module L = List
+    
 open Printf
 
 let one_rand_point_2D () =
@@ -65,6 +67,7 @@ let query_several_times n vpt =
 let main () =
   (* test all neighbors within tolerance query *)
   let points = n_times 1000 one_rand_point_2D in
+  let nb_points = L.length points in
   let t1 = Vpt.create Vpt.Optimal points in
   let t2 = Vpt.create (Vpt.Good 50) points in
   let t3 = Vpt.create Vpt.Random points in
@@ -72,39 +75,50 @@ let main () =
   assert(Vpt.check t2);
   assert(Vpt.check t3);
   (* test all points are in the tree *)
-  assert(List.sort compare points = List.sort compare (Vpt.to_list t1));
-  assert(List.sort compare points = List.sort compare (Vpt.to_list t2));
-  assert(List.sort compare points = List.sort compare (Vpt.to_list t3));
+  assert(L.sort compare points = L.sort compare (Vpt.to_list t1));
+  assert(L.sort compare points = L.sort compare (Vpt.to_list t2));
+  assert(L.sort compare points = L.sort compare (Vpt.to_list t3));
   let query = one_rand_point_2D () in
   let tol = Random.float 0.01 in
   let vpt_t, nearby_curr = time_it (fun () -> Vpt.neighbors query tol t1) in
   let nearby_curr' = Vpt.neighbors query tol t2 in
   let nearby_curr'' = Vpt.neighbors query tol t3 in
-  assert(List.for_all (fun p -> dist_2D query p <= tol) nearby_curr);
+  assert(L.for_all (fun p -> dist_2D query p <= tol) nearby_curr);
   let brute_t, nearby_ref = time_it (fun () ->
-      List.filter (fun p -> dist_2D query p <= tol) points
+      L.filter (fun p -> dist_2D query p <= tol) points
     ) in
-  assert(List.sort compare nearby_curr = List.sort compare nearby_ref);
-  assert(List.sort compare nearby_curr' = List.sort compare nearby_ref);
-  assert(List.sort compare nearby_curr'' = List.sort compare nearby_ref);
+  assert(L.sort compare nearby_curr = L.sort compare nearby_ref);
+  assert(L.sort compare nearby_curr' = L.sort compare nearby_ref);
+  assert(L.sort compare nearby_curr'' = L.sort compare nearby_ref);
   (* test all points can be found in the tree *)
-  assert(List.for_all
-           (fun p -> Vpt.find p t1 = p)
-           points);
-  assert(List.for_all
-           (fun p -> Vpt.find p t2 = p)
-           points);
-  assert(List.for_all
-           (fun p -> Vpt.find p t3 = p)
-           points);
+  assert(L.for_all (fun p -> Vpt.find p t1 = p) points);
+  assert(L.for_all (fun p -> Vpt.find p t2 = p) points);
+  assert(L.for_all (fun p -> Vpt.find p t3 = p) points);
+  (* test removal of unique points *)
+  let to_remove = L.sort_uniq compare points in
+  printf "points to remove: %d\n" (L.length to_remove);
+  L.iter (fun p ->
+      let t1' = Vpt.(remove Optimal p t1) in
+      assert(not (Vpt.mem p t1'));
+      assert(L.length (Vpt.to_list t1') = nb_points - 1);
+      assert(Vpt.check t1');
+      let t2' = Vpt.(remove (Good 50) p t2) in
+      assert(not (Vpt.mem p t2'));
+      assert(L.length (Vpt.to_list t2') = nb_points - 1);
+      assert(Vpt.check t2');
+      let t3' = Vpt.(remove Random p t3) in
+      assert(not (Vpt.mem p t3'));
+      assert(L.length (Vpt.to_list t3') = nb_points - 1);
+      assert(Vpt.check t3')
+    ) to_remove;
   printf "#vpt_neighbors(%d): %f brute: %f accel: %.3f\n%!"
-    (List.length nearby_curr)
+    (L.length nearby_curr)
     vpt_t brute_t (brute_t /. vpt_t);
   (* test nearest_neighbor queries *)
   let sizes = [1;2;4;8;16;32;64;128;256;512;1024;2048;4096;8192] in
   let ntimes = 100 in
   Printf.printf "#size b_c g_c r_c b_q g_q r_q brute\n";
-  List.iter (fun size ->
+  L.iter (fun size ->
       let points = n_times size one_rand_point_2D in
       (* create all VPTs *)
       let b_t, bvpt = time_it (fun () -> Vpt.create Vpt.Optimal points) in
