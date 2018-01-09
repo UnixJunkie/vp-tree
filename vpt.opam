@@ -12,9 +12,8 @@ install: [
   ["jbuilder" "install"]
 ]
 remove: [
-  ["ocamlfind" "remove" "vpt"]
+  ["jbuilder" "uninstall"]
 ]
 depends: [
-  "ocamlfind"
   "jbuilder" {build}
 ]
