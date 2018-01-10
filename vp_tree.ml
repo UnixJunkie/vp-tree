@@ -1,8 +1,6 @@
 
 module L = List
 
-let () = Random.self_init ()
-
 (* Vantage-point tree implementation
    Cf. "Data structures and algorithms for nearest neighbor search
    in general metric spaces" by Peter N. Yianilos for details.
@@ -71,13 +69,13 @@ struct
       (!mini, !maxi)
 
   (* get one bootstrap sample of 'size' using sampling with replacement *)
-  let bootstrap_sample size a =
+  let bootstrap_sample rng size a =
     let n = length a in
     assert(n > 0);
     assert(size < n);
     let res = make size a.(0) in
     for i = 0 to size - 1 do
-      let rand = Random.int n in
+      let rand = Random.State.int rng n in
       unsafe_set res i (unsafe_get a rand)
     done;
     res
@@ -187,17 +185,17 @@ struct
       (points.(!curr_vp), !curr_mu, A.remove !curr_vp points)
 
   (* to replace select_best_vp when working with too many points *)
-  let select_good_vp (sample_size: int) (points: P.t array) =
+  let select_good_vp rng (sample_size: int) (points: P.t array) =
     let n = A.length points in
     if sample_size * sample_size >= n then
       select_best_vp points
     else
-      let candidates = A.bootstrap_sample sample_size points in
+      let candidates = A.bootstrap_sample rng sample_size points in
       let curr_vp = ref 0 in
       let curr_mu = ref 0.0 in
       let curr_spread = ref 0.0 in
       A.iteri (fun i p_i ->
-          let sample = A.bootstrap_sample sample_size points in
+          let sample = A.bootstrap_sample rng sample_size points in
           let dists = A.map (P.dist p_i) sample in
           let mu = median dists in
           let spread = variance mu dists in
@@ -214,10 +212,10 @@ struct
 
   (* to replace select_good_vp when working with way too many points,
      or if you really need the fastest possible tree construction *)
-  let select_rand_vp (points: P.t array) =
+  let select_rand_vp rng (points: P.t array) =
     let n = A.length points in
     assert(n > 0);
-    let vp = Random.int n in
+    let vp = Random.State.int rng n in
     let dists = distances vp points in
     let mu = median dists in
     (points.(vp), mu, A.remove vp points)
@@ -243,8 +241,12 @@ struct
   let create quality points =
     let select_vp = match quality with
       | Optimal -> select_best_vp
-      | Good ssize -> select_good_vp ssize
-      | Random -> select_rand_vp in
+      | Good ssize ->
+        let rng = Random.State.make_self_init () in
+        select_good_vp rng ssize
+      | Random ->
+        let rng = Random.State.make_self_init () in
+        select_rand_vp rng in
     create' select_vp (A.of_list points)
 
   let rec find_nearest acc query tree =
