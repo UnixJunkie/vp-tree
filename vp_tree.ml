@@ -13,6 +13,7 @@ module L = List
 module type Point =
 sig
   type t
+  (* dist _must_ be a metric *)
   val dist: t -> t -> float
 end
 
@@ -170,12 +171,8 @@ struct
   let create quality points =
     let select_vp = match quality with
       | Optimal -> select_best_vp
-      | Good ssize ->
-        let rng = Random.State.make_self_init () in
-        select_good_vp rng ssize
-      | Random ->
-        let rng = Random.State.make_self_init () in
-        select_rand_vp rng in
+      | Good ssize -> select_good_vp (Random.State.make_self_init ()) ssize
+      | Random -> select_rand_vp (Random.State.make_self_init ()) in
     create' select_vp (A.of_list points)
 
   let rec find_nearest acc query tree =
@@ -183,57 +180,56 @@ struct
     | Empty -> acc
     | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
       let x = P.dist vp query in
-      let tau, acc' =
-        match acc with
-        | None -> (x, Some (x, vp))
-        | Some (tau, best) ->
-          if x < tau then (x, Some (x, vp))
-          else (tau, Some (tau, best))
-      in
-      let il = new_open_itv (lb_low -. tau) (lb_high +. tau) in
-      let ir = new_open_itv (rb_low -. tau) (rb_high +. tau) in
-      let in_il = in_open_itv x il in
-      let in_ir = in_open_itv x ir in
-      if x < middle then
-        match in_il, in_ir with
-        | false, false -> acc'
-        | true, false -> find_nearest acc' query left
-        | false, true -> find_nearest acc' query right
-        | true, true ->
-          (match find_nearest acc' query left with
-           | None -> find_nearest acc' query right
-           | Some (tau, best) ->
-             match find_nearest acc' query right with
-             | None -> Some (tau, best)
-             | Some (tau', best') ->
-               if tau' < tau then Some (tau', best')
-               else Some (tau, best))
-      else (* x >= middle *)
-        match in_ir, in_il with
-        | false, false -> acc'
-        | true, false -> find_nearest acc' query right
-        | false, true -> find_nearest acc' query left
-        | true, true ->
-          (match find_nearest acc' query right with
-           | None -> find_nearest acc' query left
-           | Some (tau, best) ->
-             match find_nearest acc' query left with
-             | None -> Some (tau, best)
-             | Some (tau', best') ->
-               if tau' < tau then Some (tau', best')
-               else Some (tau, best))
+      if x = 0.0 then Some (x, vp) (* can't get nearer than that *)
+      else
+        let tau, acc' =
+          match acc with
+          | None -> (x, Some (x, vp))
+          | Some (tau, best) ->
+            if x < tau then (x, Some (x, vp))
+            else (tau, Some (tau, best)) in
+        let il = new_open_itv (lb_low -. tau) (lb_high +. tau) in
+        let ir = new_open_itv (rb_low -. tau) (rb_high +. tau) in
+        let in_il = in_open_itv x il in
+        let in_ir = in_open_itv x ir in
+        if x < middle then
+          match in_il, in_ir with
+          | false, false -> acc'
+          | true, false -> find_nearest acc' query left
+          | false, true -> find_nearest acc' query right
+          | true, true ->
+            (match find_nearest acc' query left with
+             | None -> find_nearest acc' query right
+             | Some (tau, best) ->
+               match find_nearest acc' query right with
+               | None -> Some (tau, best)
+               | Some (tau', best') ->
+                 if tau' < tau then Some (tau', best')
+                 else Some (tau, best))
+        else (* x >= middle *)
+          match in_ir, in_il with
+          | false, false -> acc'
+          | true, false -> find_nearest acc' query right
+          | false, true -> find_nearest acc' query left
+          | true, true ->
+            (match find_nearest acc' query right with
+             | None -> find_nearest acc' query left
+             | Some (tau, best) ->
+               match find_nearest acc' query left with
+               | None -> Some (tau, best)
+               | Some (tau', best') ->
+                 if tau' < tau then Some (tau', best')
+                 else Some (tau, best))
 
   let nearest_neighbor query tree =
     match find_nearest None query tree with
+    | Some x -> x
     | None -> raise Not_found
-    | Some (tau, best) -> (tau, best)
 
   let rec to_list = function
     | Empty -> []
     | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
-      let lefties = to_list left in
-      let righties = to_list right in
-      L.rev_append lefties (vp :: righties)
+      L.rev_append (to_list left) (vp :: to_list right)
 
   let neighbors query tol tree =
     let rec loop acc = function
@@ -282,7 +278,7 @@ struct
     | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
       let bounds_OK = (0.0 <= lb_low) &&
                       (lb_low <= lb_high) &&
-                      (lb_high < middle) &&
+                      ((lb_high < middle) || (0.0 = middle)) &&
                       (middle <= rb_low) &&
                       (rb_low <= rb_high) in
       (bounds_OK &&
@@ -304,7 +300,7 @@ struct
     with Found p -> p
 
   let mem query tree =
-    try (let _ = find query tree in true)
+    try let _ = find query tree in true
     with Not_found -> false
 
   let remove quality query tree =
@@ -313,18 +309,14 @@ struct
       | Empty -> Empty
       | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
         let d = P.dist vp query in
-        found := d = 0.0;
+        found := (d = 0.0);
         if !found then
           (* remove elt. and merge sub trees *)
-          (match left, right with
-           | Empty, Empty -> Empty
-           | Node l, Empty -> Node l
-           | Empty, Node r -> Node r
-           | _ ->
-             let lpoints = to_list left in
-             let rpoints = to_list right in
-             let points = L.rev_append lpoints rpoints in
-             create quality points)
+          match left, right with
+          | Empty, Empty -> Empty
+          | Node l, Empty -> Node l
+          | Empty, Node r -> Node r
+          | _ -> create quality (L.rev_append (to_list left) (to_list right))
         else if d < middle then
           Node { vp; lb_low; lb_high; middle; rb_low; rb_high;
                  left = loop left;
@@ -332,8 +324,7 @@ struct
         else
           Node { vp; lb_low; lb_high; middle; rb_low; rb_high;
                  left;
-                 right = loop right }
-    in
+                 right = loop right } in
     let tree' = loop tree in
     if !found then tree'
     else raise Not_found
