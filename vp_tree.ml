@@ -280,21 +280,15 @@ struct
   let rec check = function
     | Empty -> true
     | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
-      let check_bounds = (0.0 <= lb_low) &&
-                         (lb_low <= lb_high) &&
-                         (lb_high < middle) &&
-                         (middle <= rb_low) &&
-                         (rb_low <= rb_high) in
-      if not check_bounds then false
-      else
-        let lpoints = to_list left in
-        let ltest = L.for_all (fun p -> P.dist vp p < middle) lpoints in
-        if not ltest then false
-        else
-          let rpoints = to_list right in
-          let rtest = L.for_all (fun p -> P.dist vp p >= middle) rpoints in
-          if not rtest then false
-          else check left && check right
+      let bounds_OK = (0.0 <= lb_low) &&
+                      (lb_low <= lb_high) &&
+                      (lb_high < middle) &&
+                      (middle <= rb_low) &&
+                      (rb_low <= rb_high) in
+      (bounds_OK &&
+       L.for_all (fun p -> P.dist vp p < middle) (to_list left) &&
+       L.for_all (fun p -> P.dist vp p >= middle) (to_list right) &&
+       check left && check right)
 
   exception Found of P.t
 
