@@ -226,10 +226,13 @@ struct
     | Some x -> x
     | None -> raise Not_found
 
-  let rec to_list = function
-    | Empty -> []
-    | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
-      L.rev_append (to_list left) (vp :: to_list right)
+  let to_list tree =
+    let rec loop acc = function
+      | Empty -> acc
+      | Node n ->
+        let acc' = loop acc n.right in
+        loop (n.vp :: acc') n.left in
+    loop [] tree
 
   let neighbors query tol tree =
     let rec loop acc = function
@@ -302,31 +305,5 @@ struct
   let mem query tree =
     try let _ = find query tree in true
     with Not_found -> false
-
-  let remove quality query tree =
-    let found = ref false in
-    let rec loop = function
-      | Empty -> Empty
-      | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
-        let d = P.dist vp query in
-        found := (d = 0.0);
-        if !found then
-          (* remove elt. and merge sub trees *)
-          match left, right with
-          | Empty, Empty -> Empty
-          | Node l, Empty -> Node l
-          | Empty, Node r -> Node r
-          | _ -> create quality (L.rev_append (to_list left) (to_list right))
-        else if d < middle then
-          Node { vp; lb_low; lb_high; middle; rb_low; rb_high;
-                 left = loop left;
-                 right }
-        else
-          Node { vp; lb_low; lb_high; middle; rb_low; rb_high;
-                 left;
-                 right = loop right } in
-    let tree' = loop tree in
-    if !found then tree'
-    else raise Not_found
 
 end

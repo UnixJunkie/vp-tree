@@ -45,7 +45,8 @@ sig
       distance from [p]. *)
   val neighbors: P.t -> float -> t -> P.t list
 
-  (** [to_list vpt] return the list of points in [vpt]. *)
+  (** [to_list vpt] return the list of points inside the [vpt],
+      in an unspecified order. *)
   val to_list: t -> P.t list
 
   (** [is_empty vpt] test if [vpt] is empty. *)
@@ -71,11 +72,4 @@ sig
       If invariant doesn't hold, then this library has a bug
       (or your distance function is not a proper metric). *)
   val check: t -> bool
-
-  (** [remove quality query tree] return an updated [tree] where the first
-      element with distance = 0.0 to [query] was removed.
-      The sub-tree that is reconstructed upon removal of [query] uses
-      the specified [quality].
-      @raise [Not_found] if [not (mem query tree)]. *)
-  val remove: quality -> P.t -> t -> t
 end

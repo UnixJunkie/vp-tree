@@ -94,23 +94,6 @@ let main () =
   assert(L.for_all (fun p -> Vpt.find p t1 = p) points);
   assert(L.for_all (fun p -> Vpt.find p t2 = p) points);
   assert(L.for_all (fun p -> Vpt.find p t3 = p) points);
-  (* test removal of unique points *)
-  let to_remove = L.sort_uniq compare points in
-  printf "points to remove: %d\n" (L.length to_remove);
-  L.iter (fun p ->
-      let t1' = Vpt.(remove Optimal p t1) in
-      assert(not (Vpt.mem p t1'));
-      assert(L.length (Vpt.to_list t1') = nb_points - 1);
-      assert(Vpt.check t1');
-      let t2' = Vpt.(remove (Good 50) p t2) in
-      assert(not (Vpt.mem p t2'));
-      assert(L.length (Vpt.to_list t2') = nb_points - 1);
-      assert(Vpt.check t2');
-      let t3' = Vpt.(remove Random p t3) in
-      assert(not (Vpt.mem p t3'));
-      assert(L.length (Vpt.to_list t3') = nb_points - 1);
-      assert(Vpt.check t3')
-    ) to_remove;
   printf "#vpt_neighbors(%d): %f brute: %f accel: %.3f\n%!"
     (L.length nearby_curr)
     vpt_t brute_t (brute_t /. vpt_t);
