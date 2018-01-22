@@ -1,6 +1,5 @@
 
 module A = MyArray
-module L = List
 
 (* Vantage-point tree implementation
    Cf. "Data structures and algorithms for nearest neighbor search
@@ -226,13 +225,14 @@ struct
     | Some x -> x
     | None -> raise Not_found
 
+  let rec to_list_loop acc = function
+    | Empty -> acc
+    | Node n ->
+      let acc' = to_list_loop acc n.right in
+      to_list_loop (n.vp :: acc') n.left
+
   let to_list tree =
-    let rec loop acc = function
-      | Empty -> acc
-      | Node n ->
-        let acc' = loop acc n.right in
-        loop (n.vp :: acc') n.left in
-    loop [] tree
+    to_list_loop [] tree
 
   let neighbors query tol tree =
     let rec loop acc = function
@@ -251,7 +251,7 @@ struct
             (* further calls to P.dist needed? *)
             if d +. lb_high <= tol then
               (* all descendants are included *)
-              L.rev_append (to_list left) acc'
+              to_list_loop acc' left
             else
               loop acc' left
           else acc' in
@@ -260,7 +260,7 @@ struct
         if itv_overlap itv itv_right then
           (* further calls to P.dist needed? *)
           if d +. rb_high <= tol then
-            L.rev_append (to_list right) lmatches
+            to_list_loop lmatches right
           else
             loop lmatches right
         else lmatches in
@@ -285,8 +285,8 @@ struct
                       (middle <= rb_low) &&
                       (rb_low <= rb_high) in
       (bounds_OK &&
-       L.for_all (fun p -> P.dist vp p < middle) (to_list left) &&
-       L.for_all (fun p -> P.dist vp p >= middle) (to_list right) &&
+       List.for_all (fun p -> P.dist vp p < middle) (to_list left) &&
+       List.for_all (fun p -> P.dist vp p >= middle) (to_list right) &&
        check left && check right)
 
   exception Found of P.t
