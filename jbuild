@@ -6,5 +6,6 @@
   (modules (vp_tree myArray))))
 
 (executable
- ((name        test)
-  (libraries (unix))))
+ ((name test)
+  (modules (test))
+  (libraries (unix vpt))))
