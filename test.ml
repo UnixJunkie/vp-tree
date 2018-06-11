@@ -22,7 +22,7 @@ struct
   let dist = dist_2D
 end
 
-module Vpt = Vp_tree.Make(Point_2D)
+module VPT = Vpt.Vp_tree.Make(Point_2D)
 
 let to_string_2D (x, y) =
   sprintf "%.3f %.3f" x y
@@ -57,32 +57,31 @@ let query_several_times n vpt =
     time_it (fun () ->
         for i = 1 to n do
           let q = one_rand_point_2D () in
-          ignore(Vpt.nearest_neighbor q vpt)
+          ignore(VPT.nearest_neighbor q vpt)
         done
       ) in
   let q = one_rand_point_2D () in
-  let res = Vpt.nearest_neighbor q vpt in
+  let res = VPT.nearest_neighbor q vpt in
   (dt /. (float n), res, q)
 
 let main () =
   (* test all neighbors within tolerance query *)
   let points = n_times 1000 one_rand_point_2D in
-  let nb_points = L.length points in
-  let t1 = Vpt.create Vpt.Optimal points in
-  let t2 = Vpt.create (Vpt.Good 50) points in
-  let t3 = Vpt.create Vpt.Random points in
-  assert(Vpt.check t1);
-  assert(Vpt.check t2);
-  assert(Vpt.check t3);
+  let t1 = VPT.create VPT.Optimal points in
+  let t2 = VPT.create (VPT.Good 50) points in
+  let t3 = VPT.create VPT.Random points in
+  assert(VPT.check t1);
+  assert(VPT.check t2);
+  assert(VPT.check t3);
   (* test all points are in the tree *)
-  assert(L.sort compare points = L.sort compare (Vpt.to_list t1));
-  assert(L.sort compare points = L.sort compare (Vpt.to_list t2));
-  assert(L.sort compare points = L.sort compare (Vpt.to_list t3));
+  assert(L.sort compare points = L.sort compare (VPT.to_list t1));
+  assert(L.sort compare points = L.sort compare (VPT.to_list t2));
+  assert(L.sort compare points = L.sort compare (VPT.to_list t3));
   let query = one_rand_point_2D () in
   let tol = Random.float 0.01 in
-  let vpt_t, nearby_curr = time_it (fun () -> Vpt.neighbors query tol t1) in
-  let nearby_curr' = Vpt.neighbors query tol t2 in
-  let nearby_curr'' = Vpt.neighbors query tol t3 in
+  let vpt_t, nearby_curr = time_it (fun () -> VPT.neighbors query tol t1) in
+  let nearby_curr' = VPT.neighbors query tol t2 in
+  let nearby_curr'' = VPT.neighbors query tol t3 in
   assert(L.for_all (fun p -> dist_2D query p <= tol) nearby_curr);
   let brute_t, nearby_ref = time_it (fun () ->
       L.filter (fun p -> dist_2D query p <= tol) points
@@ -91,9 +90,9 @@ let main () =
   assert(L.sort compare nearby_curr' = L.sort compare nearby_ref);
   assert(L.sort compare nearby_curr'' = L.sort compare nearby_ref);
   (* test all points can be found in the tree *)
-  assert(L.for_all (fun p -> Vpt.find p t1 = p) points);
-  assert(L.for_all (fun p -> Vpt.find p t2 = p) points);
-  assert(L.for_all (fun p -> Vpt.find p t3 = p) points);
+  assert(L.for_all (fun p -> VPT.find p t1 = p) points);
+  assert(L.for_all (fun p -> VPT.find p t2 = p) points);
+  assert(L.for_all (fun p -> VPT.find p t3 = p) points);
   printf "#vpt_neighbors(%d): %f brute: %f accel: %.3f\n%!"
     (L.length nearby_curr)
     vpt_t brute_t (brute_t /. vpt_t);
@@ -104,9 +103,9 @@ let main () =
   L.iter (fun size ->
       let points = n_times size one_rand_point_2D in
       (* create all VPTs *)
-      let b_t, bvpt = time_it (fun () -> Vpt.create Vpt.Optimal points) in
-      let g_t, gvpt = time_it (fun () -> Vpt.create (Vpt.Good 50) points) in
-      let r_t, rvpt = time_it (fun () -> Vpt.create Vpt.Random points) in
+      let b_t, bvpt = time_it (fun () -> VPT.create VPT.Optimal points) in
+      let g_t, gvpt = time_it (fun () -> VPT.create (VPT.Good 50) points) in
+      let r_t, rvpt = time_it (fun () -> VPT.create VPT.Random points) in
       (* query all VPTs *)
       (* FBR: we should query always with the same query points, whatever
        *      the flavor of the tree in order to compare query speed *)
