@@ -35,7 +35,7 @@ let n_times n f =
   !res
 
 let brute_force_nearest_find dist query points =
-  let rec loop ((curr_d, curr_p) as acc) = function
+  let rec loop ((curr_d, _curr_p) as acc) = function
     | [] -> acc
     | x :: xs ->
       let d = dist x query in

@@ -156,7 +156,7 @@ struct
     else
       let vp, mu, others = select_vp points in
       let dists = A.map (fun p -> (P.dist vp p, p)) others in
-      let lefties, righties = A.partition (fun (d, p) -> d < mu) dists in
+      let lefties, righties = A.partition (fun (d, _p) -> d < mu) dists in
       let ldists, lpoints = A.split lefties in
       let rdists, rpoints = A.split righties in
       let lb_low, lb_high = A.min_max_def ldists (0., 0.) in
@@ -235,7 +235,7 @@ struct
   let neighbors query tol tree =
     let rec loop acc = function
       | Empty -> acc
-      | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
+      | Node { vp; lb_low; lb_high; rb_low; rb_high; left; right; _ } ->
         (* should we include vp? *)
         let d = P.dist vp query in
         let acc' = if d <= tol then vp :: acc else acc in
@@ -270,7 +270,7 @@ struct
 
   let root = function
     | Empty -> raise Not_found
-    | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } -> vp
+    | Node { vp; _ } -> vp
 
   (* test if the tree invariant holds.
      If it doesn't, then we are in trouble... *)
@@ -292,7 +292,7 @@ struct
   let find query tree =
     let rec loop = function
       | Empty -> ()
-      | Node { vp; lb_low; lb_high; middle; rb_low; rb_high; left; right } ->
+      | Node { vp; middle; left; right; _ } ->
         let d = P.dist vp query in
         if d = 0.0 then raise (Found vp)
         else if d < middle then loop left
