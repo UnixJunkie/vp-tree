@@ -1,11 +1,9 @@
 (library
  (name vpt)
  (public_name vpt)
- (flags :standard -warn-error -27)
  (modules vp_tree myArray))
 
 (executable
  (name test)
  (modules test)
- (flags :standard -warn-error -27)
  (libraries unix vpt))
