@@ -55,7 +55,7 @@ let time_it f =
 let query_several_times n vpt =
   let dt, _ =
     time_it (fun () ->
-        for i = 1 to n do
+        for _i = 1 to n do
           let q = one_rand_point_2D () in
           ignore(VPT.nearest_neighbor q vpt)
         done

@@ -1,14 +1,14 @@
 .PHONY: test
 
 all:
-	jbuilder build @install
+	dune build @install
 
 test:
-	jbuilder build test.exe
+	dune build test.exe
 	./_build/default/test.exe
 
 install: all
-	jbuilder install
+	dune install
 
 uninstall:
 	ocamlfind -remove vpt

@@ -6,8 +6,9 @@ bug-reports: "https://github.com/UnixJunkie/vp-tree/issues"
 dev-repo: "git+https://github.com/UnixJunkie/vp-tree.git"
 license: "BSD-3"
 build: [
-  ["jbuilder" "build" "@install" "-j" jobs]
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
 ]
 depends: [
-  "jbuilder" {build}
+  "dune" {build}
 ]

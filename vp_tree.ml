@@ -149,8 +149,6 @@ struct
     let mu = median dists in
     (points.(vp), mu, A.remove vp points)
 
-  exception Empty_list
-
   let rec create' select_vp points =
     let n = A.length points in
     if n = 0 then Empty
