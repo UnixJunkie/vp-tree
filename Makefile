@@ -4,7 +4,7 @@ all:
 	dune build @install
 
 test:
-	dune build test.exe
+	dune build src/test.exe
 	./_build/default/test.exe
 
 install: all
