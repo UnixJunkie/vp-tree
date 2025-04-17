@@ -1,2 +1,4 @@
 (lang dune 2.8)
-(name vpt)
+(package
+  (name vpt)
+  (depends ocaml))
